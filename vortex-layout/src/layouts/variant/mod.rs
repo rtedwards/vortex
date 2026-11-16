@@ -28,6 +28,9 @@ use vortex_error::vortex_ensure_eq;
 use vortex_error::vortex_err;
 use vortex_session::VortexSession;
 use vortex_session::registry::CachedId;
+pub use writer::FixedShredding;
+pub use writer::NoShredding;
+pub use writer::VariantShreddingPolicy;
 pub use writer::VariantStrategy;
 
 use crate::Layout;
