@@ -43,7 +43,9 @@ impl FillNullKernel for Decimal {
                 buffer[index] = fill;
             }
 
-            DecimalArray::new(buffer.freeze(), array.decimal_dtype(), validity)
+            // SAFETY: Newly valid slots contain the fill scalar. Other values keep their
+            // original precision, and the fill preserves the length.
+            unsafe { DecimalArray::new_unchecked(buffer.freeze(), array.decimal_dtype(), validity) }
         });
         Ok(Some(result.into_array()))
     }
@@ -54,7 +56,6 @@ mod tests {
     use std::sync::LazyLock;
 
     use rstest::rstest;
-    use vortex_buffer::buffer;
     use vortex_error::VortexResult;
     use vortex_session::VortexSession;
 
@@ -68,7 +69,6 @@ mod tests {
     use crate::dtype::Nullability;
     use crate::scalar::DecimalValue;
     use crate::scalar::Scalar;
-    use crate::validity::Validity;
 
     static SESSION: LazyLock<VortexSession> = LazyLock::new(VortexSession::empty);
 
@@ -159,10 +159,9 @@ mod tests {
         let mut ctx = SESSION.create_execution_ctx();
         let decimal_dtype = DecimalDType::new(19, 2);
 
-        let arr = DecimalArray::new(
-            buffer![800i128, 1000i128, 1200i128, 1400i128, 1600i128],
+        let arr = DecimalArray::from_iter(
+            [800i128, 1000i128, 1200i128, 1400i128, 1600i128],
             decimal_dtype,
-            Validity::NonNullable,
         );
         let p = arr
             .into_array()
