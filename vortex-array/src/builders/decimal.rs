@@ -171,16 +171,15 @@ impl DecimalBuilder {
         self.nulls.append_n_non_nulls(n);
     }
 
-    /// Appends the values of a canonical [`DecimalArray`] to the builder, coercing the physical
-    /// storage type to the builder's type as needed.
+    /// Appends a canonical [`DecimalArray`] of the builder's dtype.
     pub(crate) fn append_decimal_array(
         &mut self,
         array: ArrayView<'_, Decimal>,
         ctx: &mut ExecutionCtx,
     ) -> VortexResult<()> {
         let mask = array.validity()?.execute_mask(array.len(), ctx)?;
-        match_each_decimal_value_type!(array.values_type(), |D| {
-            self.values.extend(array.buffer::<D>().iter().copied());
+        delegate_fn!(&mut self.values, |T, values| {
+            values.buffer.extend_from_slice(&array.buffer::<T>());
         });
         self.nulls.append_validity_mask(&mask);
         Ok(())
@@ -295,17 +294,6 @@ impl DecimalBuffer {
 
     fn len(&self) -> usize {
         delegate_fn!(self, |T, values| { values.buffer.len() })
-    }
-
-    fn extend<I, V: NativeDecimalType>(&mut self, iter: I)
-    where
-        I: Iterator<Item = V>,
-    {
-        delegate_fn!(self, |T, values| {
-            values.buffer.extend(
-                iter.map(|x| <T as BigCast>::from(x).vortex_expect("decimal conversion failure")),
-            )
-        })
     }
 }
 
